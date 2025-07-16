@@ -1,0 +1,13 @@
+{
+  "name": "tradingmind",
+  "version": "1.0.0",
+  "description": "Stock market research app",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx http-server -p 8000 -c-1 --cors",
+    "dev": "npx http-server -p 8000 -c-1 --cors -o"
+  },
+  "keywords": ["trading", "stocks", "notes"],
+  "author": "",
+  "license": "MIT"
+}
