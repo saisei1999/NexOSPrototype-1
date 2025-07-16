@@ -164,31 +164,47 @@ class CaptureManager {
         this.capturesContainer.innerHTML = captures.map(capture => this.createCaptureHTML(capture)).join('');
         
         // Add event listeners to buttons
-        this.capturesContainer.querySelectorAll('.process-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => this.processCapture(e.target.dataset.id));
+        this.capturesContainer.querySelectorAll('.edit-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.enableEditMode(e.target.closest('button').dataset.id);
+            });
         });
         
-        this.capturesContainer.querySelectorAll('.delete-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => this.deleteCapture(e.target.dataset.id));
+        this.capturesContainer.querySelectorAll('.thread-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.processCapture(e.target.closest('button').dataset.id);
+            });
         });
     }
 
     // Create HTML for a single capture
     createCaptureHTML(capture) {
-        const timeAgo = this.getTimeAgo(new Date(capture.timestamp));
+        const timeAgo = this.getRelativeTime(new Date(capture.timestamp));
         const tickersHTML = capture.tickers.map(t => `<span class="ticker-tag">$${t}</span>`).join('');
         
         return `
-            <div class="capture-item" data-id="${capture.id}">
-                <div class="capture-text">${this.escapeHtml(capture.text)}</div>
-                <div class="capture-meta">
-                    <div>
-                        <span class="capture-time">${timeAgo}</span>
-                        ${tickersHTML ? `<div class="capture-tickers">${tickersHTML}</div>` : ''}
-                    </div>
-                    <div class="capture-actions">
-                        <button class="btn-secondary process-btn" data-id="${capture.id}">Process</button>
-                        <button class="btn-danger delete-btn" data-id="${capture.id}">Delete</button>
+            <div class="capture-card" data-capture-id="${capture.id}">
+                <div class="capture-actions">
+                    <button class="action-btn edit-btn" data-id="${capture.id}" title="Edit">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                    </button>
+                    <button class="action-btn thread-btn" data-id="${capture.id}" title="Add to thread">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="capture-content">
+                    <p class="capture-text">${this.escapeHtml(capture.text)}</p>
+                    <div class="capture-metadata">
+                        <span class="timestamp">${timeAgo}</span>
+                        ${tickersHTML ? `<div class="ticker-tags">${tickersHTML}</div>` : ''}
                     </div>
                 </div>
             </div>
@@ -259,14 +275,98 @@ class CaptureManager {
         storage.removeFromLocal('capture_draft');
     }
 
-    // Utility: Get time ago string
-    getTimeAgo(date) {
-        const seconds = Math.floor((new Date() - date) / 1000);
+    // Enable edit mode for a capture
+    enableEditMode(captureId) {
+        const card = document.querySelector(`[data-capture-id="${captureId}"]`);
+        if (!card) return;
         
-        if (seconds < 60) return 'just now';
-        if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-        if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-        if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+        const textElement = card.querySelector('.capture-text');
+        const currentText = textElement.textContent;
+        
+        // Create textarea
+        const textarea = document.createElement('textarea');
+        textarea.value = currentText;
+        textarea.className = 'capture-edit-textarea';
+        textarea.style.height = Math.max(textElement.offsetHeight, 40) + 'px';
+        
+        // Replace text with textarea
+        textElement.replaceWith(textarea);
+        textarea.focus();
+        textarea.select();
+        
+        // Auto-resize as user types
+        textarea.addEventListener('input', () => this.autoResize(textarea));
+        
+        // Save on blur or Ctrl+Enter
+        textarea.addEventListener('blur', () => this.saveEdit(captureId, textarea.value, currentText));
+        textarea.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                e.preventDefault();
+                this.saveEdit(captureId, textarea.value, currentText);
+            }
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                this.cancelEdit(captureId, currentText, textarea);
+            }
+        });
+    }
+    
+    // Auto-resize textarea
+    autoResize(textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.max(textarea.scrollHeight, 40) + 'px';
+    }
+    
+    // Save edited capture
+    async saveEdit(captureId, newText, originalText) {
+        if (newText.trim() === originalText.trim()) {
+            this.cancelEdit(captureId, originalText);
+            return;
+        }
+        
+        try {
+            const capture = await storage.get('captures', parseInt(captureId));
+            if (capture) {
+                capture.text = newText.trim();
+                capture.tickers = this.extractTickers(newText);
+                capture.updatedAt = new Date().toISOString();
+                
+                await captureStorage.save(capture);
+                this.loadCaptures();
+                this.showSaveIndicator();
+            }
+        } catch (error) {
+            console.error('Failed to save edit:', error);
+            this.cancelEdit(captureId, originalText);
+        }
+    }
+    
+    // Cancel edit mode
+    cancelEdit(captureId, originalText, textarea = null) {
+        const card = document.querySelector(`[data-capture-id="${captureId}"]`);
+        if (!card) return;
+        
+        const textareaElement = textarea || card.querySelector('.capture-edit-textarea');
+        if (textareaElement) {
+            const p = document.createElement('p');
+            p.className = 'capture-text';
+            p.textContent = originalText;
+            textareaElement.replaceWith(p);
+        }
+    }
+
+    // Utility: Get relative time string (Kortex-style)
+    getRelativeTime(date) {
+        const now = Date.now();
+        const diff = now - date.getTime();
+        const minutes = Math.floor(diff / 60000);
+        const hours = Math.floor(diff / 3600000);
+        const days = Math.floor(diff / 86400000);
+        
+        if (minutes < 1) return 'just now';
+        if (minutes < 60) return `${minutes}m ago`;
+        if (hours < 24) return `${hours}h ago`;
+        if (days < 7) return `${days}d ago`;
         
         return date.toLocaleDateString();
     }

@@ -2,47 +2,66 @@
 
 class App {
     constructor() {
-        this.currentTab = 'inbox';
+        this.currentView = 'inbox';
         this.init();
     }
 
     init() {
-        // Set up tab navigation
-        this.setupTabNavigation();
+        // Set up sidebar navigation
+        this.setupSidebarNavigation();
         
-        // Initialize other features when tabs are clicked
-        this.setupTabInitializers();
+        // Initialize collapsible sections
+        this.setupCollapsibleSections();
+        
+        // Initialize view initializers
+        this.setupViewInitializers();
         
         // Set up keyboard shortcuts
         this.setupKeyboardShortcuts();
+        
+        // Set up search functionality
+        this.setupSearch();
     }
 
-    setupTabNavigation() {
-        const tabButtons = document.querySelectorAll('.tab-btn');
-        const tabContents = document.querySelectorAll('.tab-content');
+    setupSidebarNavigation() {
+        const sidebarItems = document.querySelectorAll('.sidebar-item[data-tab]');
+        const views = document.querySelectorAll('.view');
         
-        tabButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                const targetTab = button.dataset.tab;
+        sidebarItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const targetView = item.dataset.tab;
                 
                 // Update active states
-                tabButtons.forEach(btn => btn.classList.remove('active'));
-                tabContents.forEach(content => content.classList.remove('active'));
+                sidebarItems.forEach(btn => btn.classList.remove('active'));
+                views.forEach(view => view.classList.remove('active'));
                 
-                button.classList.add('active');
-                document.getElementById(`${targetTab}-tab`).classList.add('active');
+                item.classList.add('active');
+                document.getElementById(`${targetView}-view`).classList.add('active');
                 
-                this.currentTab = targetTab;
+                this.currentView = targetView;
                 
-                // Trigger tab-specific initialization
-                this.onTabChange(targetTab);
+                // Trigger view-specific initialization
+                this.onViewChange(targetView);
             });
         });
     }
 
-    setupTabInitializers() {
-        // Initialize features for each tab
-        this.tabInitializers = {
+    setupCollapsibleSections() {
+        const sections = document.querySelectorAll('.nav-section');
+        
+        sections.forEach(section => {
+            const header = section.querySelector('.section-header');
+            if (header) {
+                header.addEventListener('click', () => {
+                    section.classList.toggle('open');
+                });
+            }
+        });
+    }
+
+    setupViewInitializers() {
+        // Initialize features for each view
+        this.viewInitializers = {
             inbox: () => {
                 // Inbox is initialized by capture.js
                 if (window.captureManager) {
@@ -58,38 +77,62 @@ class App {
         };
     }
 
-    onTabChange(tab) {
-        if (this.tabInitializers[tab]) {
-            this.tabInitializers[tab]();
+    onViewChange(view) {
+        if (this.viewInitializers[view]) {
+            this.viewInitializers[view]();
         }
+    }
+
+    setupSearch() {
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) {
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    this.performSearch(searchInput.value);
+                }
+            });
+        }
+        
+        // ⌘K shortcut for search
+        document.addEventListener('keydown', (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                searchInput?.focus();
+            }
+        });
+    }
+
+    performSearch(query) {
+        // TODO: Implement search functionality
+        console.log('Searching for:', query);
     }
 
     setupKeyboardShortcuts() {
         document.addEventListener('keydown', (e) => {
-            // Alt + 1/2/3 for tab switching
+            // Alt + 1/2/3 for view switching
             if (e.altKey) {
                 switch(e.key) {
                     case '1':
                         e.preventDefault();
-                        this.switchToTab('inbox');
+                        this.switchToView('inbox');
                         break;
                     case '2':
                         e.preventDefault();
-                        this.switchToTab('notes');
+                        this.switchToView('notes');
                         break;
                     case '3':
                         e.preventDefault();
-                        this.switchToTab('reader');
+                        this.switchToView('reader');
                         break;
                 }
             }
         });
     }
 
-    switchToTab(tabName) {
-        const tabButton = document.querySelector(`[data-tab="${tabName}"]`);
-        if (tabButton) {
-            tabButton.click();
+    switchToView(viewName) {
+        const sidebarItem = document.querySelector(`[data-tab="${viewName}"]`);
+        if (sidebarItem) {
+            sidebarItem.click();
         }
     }
 
