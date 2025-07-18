@@ -24,6 +24,7 @@ class CaptureManager {
         this.dropdownOptions = document.querySelectorAll('.dropdown-option');
         this.selectedTimeframe = null;
         this.isDropdownOpen = false;
+        this.dropdownDebounceTimeout = null;
         
         this.saveTimeout = null;
         this.isEditMode = false;
@@ -60,8 +61,16 @@ class CaptureManager {
         if (this.dropdownArrow) {
             this.dropdownArrow.addEventListener('click', (e) => {
                 e.stopPropagation();
-                console.log('Dropdown arrow clicked'); // Debug log
-                this.toggleDropdown();
+                
+                // Debounce to prevent jankiness
+                if (this.dropdownDebounceTimeout) {
+                    clearTimeout(this.dropdownDebounceTimeout);
+                }
+                
+                this.dropdownDebounceTimeout = setTimeout(() => {
+                    console.log('Dropdown arrow clicked'); // Debug log
+                    this.toggleDropdown();
+                }, 100);
             });
         }
         
