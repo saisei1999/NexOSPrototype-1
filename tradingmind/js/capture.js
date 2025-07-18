@@ -390,10 +390,15 @@ class CaptureManager {
         let categoryBadge = '';
         if (capture.category) {
             let badgeText = capture.category.toUpperCase();
+            let badgeClass = `category-badge ${capture.category}`;
+            
+            // Add timeframe-specific class and text for idea captures
             if (capture.timeframe && capture.category === 'idea') {
                 badgeText += ` - ${capture.timeframe.toUpperCase()}`;
+                badgeClass = `category-badge idea-${capture.timeframe.toLowerCase()}`;
             }
-            categoryBadge = `<div class="category-badge ${capture.category}">${badgeText}</div>`;
+            
+            categoryBadge = `<div class="${badgeClass}">${badgeText}</div>`;
         }
         
         return `

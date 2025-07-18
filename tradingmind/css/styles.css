@@ -33,6 +33,12 @@
     --accent-hover: #0066cc;
     --accent-light: rgba(0, 132, 255, 0.1);
     
+    /* Timeframe Colors */
+    --idea-intraday: #dc2626;  /* muted red */
+    --idea-swing: #2563eb;     /* muted blue */
+    --idea-core: #16a34a;      /* muted green */
+    --idea-longterm: #7c3aed;  /* muted purple */
+    
     --success: #4caf50;
     --warning: #ff9800;
     --danger: #f44336;
@@ -395,6 +401,7 @@ body {
 
 .category-btn .category-text {
     margin-right: var(--space-1);
+    pointer-events: none; /* Allow clicks to pass through to button */
 }
 
 .dropdown-arrow {
@@ -604,6 +611,23 @@ body {
 
 .category-badge.idea {
     background: #f59e0b; /* amber-500 */
+}
+
+/* Timeframe-specific badge colors */
+.category-badge.idea-intraday {
+    background: var(--idea-intraday);
+}
+
+.category-badge.idea-swing {
+    background: var(--idea-swing);
+}
+
+.category-badge.idea-core {
+    background: var(--idea-core);
+}
+
+.category-badge.idea-longterm {
+    background: var(--idea-longterm);
 }
 
 .capture-text {
