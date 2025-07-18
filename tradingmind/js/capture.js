@@ -68,7 +68,6 @@ class CaptureManager {
                 }
                 
                 this.dropdownDebounceTimeout = setTimeout(() => {
-                    console.log('Dropdown arrow clicked'); // Debug log
                     this.toggleDropdown();
                 }, 100);
             });
@@ -207,7 +206,6 @@ class CaptureManager {
     
     // Toggle dropdown menu
     toggleDropdown() {
-        console.log('Toggle dropdown called, isOpen:', this.isDropdownOpen); // Debug log
         if (this.isDropdownOpen) {
             this.closeDropdown();
         } else {
@@ -217,7 +215,6 @@ class CaptureManager {
     
     // Open dropdown menu
     openDropdown() {
-        console.log('Opening dropdown, element:', this.timeframeDropdown); // Debug log
         if (this.timeframeDropdown) {
             this.timeframeDropdown.classList.add('show');
             this.isDropdownOpen = true;
@@ -302,27 +299,29 @@ class CaptureManager {
                 processed: false
             };
             
+            // Save capture to storage
             await captureStorage.save(capture);
             
-            // Clear input and reset
+            // Update UI immediately to show new capture
+            this.loadCaptures();
+            
+            // Clear form after successful save
             this.captureInput.value = '';
             this.tickerPreview.textContent = '';
             this.resetCategorySelection();
-            this.hideTimeframeDropdown();
             this.resetTimeframeSelection();
             this.updateSendButton('');
+            
+            // Clear draft AFTER successful save
             this.clearDraft();
             
-            // Show success indicator
-            this.showSaveIndicator('Sent');
-            
-            // Reload captures list
-            this.loadCaptures();
-            
-            // Focus back on input
+            // Focus back on input for next capture
             this.captureInput.focus();
+            
         } catch (error) {
             console.error('Failed to commit capture:', error);
+            // Keep form state and draft intact for retry
+            this.showSaveIndicator('Failed to send');
         }
     }
 
@@ -548,6 +547,11 @@ class CaptureManager {
 
     // Save draft to localStorage
     saveDraft(text) {
+        // Don't save drafts during edit mode or when text is empty
+        if (this.isEditMode || !text.trim()) {
+            return;
+        }
+        
         storage.saveToLocal('capture_draft', { 
             text, 
             category: this.selectedCategory,
