@@ -14,10 +14,15 @@ class CaptureManager {
         this.saveEditBtn = document.getElementById('save-edit-btn');
         this.cancelEditBtn = document.getElementById('cancel-edit-btn');
         
+        // Category elements
+        this.categoryButtons = document.querySelectorAll('.category-btn');
+        this.selectedCategory = null;
+        
         this.saveTimeout = null;
         this.isEditMode = false;
         this.editingCaptureId = null;
         this.originalText = '';
+        this.originalCategory = null;
         
         this.init();
         this.initStockModal();
@@ -37,6 +42,11 @@ class CaptureManager {
         // Edit mode event listeners
         this.saveEditBtn.addEventListener('click', () => this.saveEdit());
         this.cancelEditBtn.addEventListener('click', () => this.cancelEdit());
+        
+        // Category selection event listeners
+        this.categoryButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => this.selectCategory(e.target.dataset.category));
+        });
         
         // Load draft from localStorage
         this.loadDraft();
@@ -103,17 +113,42 @@ class CaptureManager {
         }
     }
     
+    // Select category
+    selectCategory(category) {
+        // Remove selected class from all buttons
+        this.categoryButtons.forEach(btn => btn.classList.remove('selected'));
+        
+        // Add selected class to clicked button
+        const selectedBtn = document.querySelector(`[data-category="${category}"]`);
+        if (selectedBtn) {
+            selectedBtn.classList.add('selected');
+            this.selectedCategory = category;
+        }
+        
+        // Update send button state
+        this.updateSendButton(this.captureInput.value);
+    }
+    
+    // Reset category selection
+    resetCategorySelection() {
+        this.categoryButtons.forEach(btn => btn.classList.remove('selected'));
+        this.selectedCategory = null;
+    }
+    
     // Update send button state
     updateSendButton(text) {
         const hasText = text.trim().length > 0;
-        this.sendButton.disabled = !hasText;
-        this.sendButton.style.opacity = hasText ? '0.7' : '0.3';
+        const hasCategory = this.selectedCategory !== null;
+        const canSend = hasText && hasCategory;
+        
+        this.sendButton.disabled = !canSend;
+        this.sendButton.style.opacity = canSend ? '0.7' : '0.3';
     }
     
     // Commit capture (messaging style)
     async commitCapture() {
         const text = this.captureInput.value.trim();
-        if (!text) return;
+        if (!text || !this.selectedCategory) return;
         
         const tickers = this.extractTickers(text);
         
@@ -122,6 +157,7 @@ class CaptureManager {
                 id: Date.now(),
                 text: text,
                 tickers: tickers,
+                category: this.selectedCategory,
                 timestamp: new Date().toISOString(),
                 processed: false
             };
@@ -131,6 +167,7 @@ class CaptureManager {
             // Clear input and reset
             this.captureInput.value = '';
             this.tickerPreview.textContent = '';
+            this.resetCategorySelection();
             this.updateSendButton('');
             this.clearDraft();
             
@@ -207,6 +244,7 @@ class CaptureManager {
     createCaptureHTML(capture) {
         const timeAgo = this.getRelativeTime(new Date(capture.timestamp));
         const tickersHTML = capture.tickers.map(t => `<span class="ticker-tag">$${t}</span>`).join('');
+        const categoryBadge = capture.category ? `<div class="category-badge ${capture.category}">${capture.category}</div>` : '';
         
         return `
             <div class="capture-card" data-capture-id="${capture.id}">
@@ -228,6 +266,7 @@ class CaptureManager {
                 </div>
                 
                 <div class="capture-content">
+                    ${categoryBadge}
                     <p class="capture-text">${this.escapeHtml(capture.text)}</p>
                     <div class="capture-metadata">
                         <span class="timestamp">${timeAgo}</span>
@@ -358,7 +397,11 @@ class CaptureManager {
 
     // Save draft to localStorage
     saveDraft(text) {
-        storage.saveToLocal('capture_draft', { text, timestamp: Date.now() });
+        storage.saveToLocal('capture_draft', { 
+            text, 
+            category: this.selectedCategory,
+            timestamp: Date.now() 
+        });
     }
 
     // Load draft from localStorage
@@ -368,6 +411,11 @@ class CaptureManager {
             this.captureInput.value = draft.text;
             const tickers = this.extractTickers(draft.text);
             this.updateTickerPreview(tickers);
+            
+            // Restore category selection
+            if (draft.category) {
+                this.selectCategory(draft.category);
+            }
         }
     }
 
@@ -386,10 +434,16 @@ class CaptureManager {
             this.isEditMode = true;
             this.editingCaptureId = captureId;
             this.originalText = capture.text;
+            this.originalCategory = capture.category;
             
             // Load text into input
             this.captureInput.value = capture.text;
             this.updateTickerPreview(capture.tickers);
+            
+            // Set category selection
+            if (capture.category) {
+                this.selectCategory(capture.category);
+            }
             
             // Show edit UI
             this.editIndicator.style.display = 'flex';
@@ -419,6 +473,7 @@ class CaptureManager {
             if (capture) {
                 capture.text = newText;
                 capture.tickers = this.extractTickers(newText);
+                capture.category = this.selectedCategory;
                 capture.updatedAt = new Date().toISOString();
                 
                 await captureStorage.save(capture);
@@ -440,6 +495,13 @@ class CaptureManager {
         this.captureInput.value = this.originalText;
         this.updateTickerPreview(this.extractTickers(this.originalText));
         
+        // Restore original category
+        if (this.originalCategory) {
+            this.selectCategory(this.originalCategory);
+        } else {
+            this.resetCategorySelection();
+        }
+        
         this.exitEditMode();
     }
     
@@ -448,14 +510,16 @@ class CaptureManager {
         this.isEditMode = false;
         this.editingCaptureId = null;
         this.originalText = '';
+        this.originalCategory = null;
         
         // Hide edit UI
         this.editIndicator.style.display = 'none';
         this.editActions.style.display = 'none';
         
-        // Clear input
+        // Clear input and reset category
         this.captureInput.value = '';
         this.tickerPreview.textContent = '';
+        this.resetCategorySelection();
         this.updateSendButton('');
         
         // Load draft if exists
