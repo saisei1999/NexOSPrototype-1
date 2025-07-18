@@ -26,6 +26,13 @@ class CaptureManager {
         this.isDropdownOpen = false;
         this.dropdownDebounceTimeout = null;
         
+        // Image upload elements
+        this.imageUploadButton = document.getElementById('image-upload-button');
+        this.imageFileInput = document.getElementById('image-file-input');
+        this.imagePreviewContainer = document.getElementById('image-preview-container');
+        this.imagePreviewList = document.getElementById('image-preview-list');
+        this.selectedImages = [];
+        
         this.saveTimeout = null;
         this.isEditMode = false;
         this.editingCaptureId = null;
@@ -93,6 +100,12 @@ class CaptureManager {
                 this.closeDropdown();
             }
         });
+        
+        // Image upload event listeners
+        this.setupImageUpload();
+        
+        // Initialize stock modal event listeners
+        this.initStockModal();
         
         // Load draft from localStorage
         this.loadDraft();
@@ -295,6 +308,7 @@ class CaptureManager {
                 tickers: tickers,
                 category: this.selectedCategory,
                 timeframe: this.selectedTimeframe, // null for non-idea categories
+                images: [...this.selectedImages], // Copy of selected images
                 timestamp: new Date().toISOString(),
                 processed: false
             };
@@ -310,6 +324,7 @@ class CaptureManager {
             this.tickerPreview.textContent = '';
             this.resetCategorySelection();
             this.resetTimeframeSelection();
+            this.clearImages(); // Clear selected images
             this.updateSendButton('');
             
             // Clear draft AFTER successful save
@@ -379,6 +394,16 @@ class CaptureManager {
                 this.showStockModal(ticker);
             });
         });
+        
+        // Add event listeners to capture image thumbnails
+        this.capturesContainer.querySelectorAll('.capture-thumbnail').forEach(thumbnail => {
+            thumbnail.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const imageId = thumbnail.dataset.imageId;
+                const captureId = thumbnail.closest('.capture-card').dataset.captureId;
+                this.showCaptureImageModal(captureId, imageId);
+            });
+        });
     }
 
     // Create HTML for a single capture
@@ -421,13 +446,27 @@ class CaptureManager {
                 </div>
                 
                 <div class="capture-content">
-                    ${categoryBadge}
-                    <p class="capture-text">${this.escapeHtml(capture.text)}</p>
-                    <div class="capture-metadata">
-                        <span class="timestamp">${timeAgo}</span>
-                        ${tickersHTML ? `<div class="ticker-tags">${tickersHTML}</div>` : ''}
-                    </div>
+                ${categoryBadge}
+                <p class="capture-text">${this.escapeHtml(capture.text)}</p>
+                ${this.createImageThumbnailsHTML(capture.images || [])}
+                <div class="capture-metadata">
+                    <span class="timestamp">${timeAgo}</span>
+                    ${tickersHTML ? `<div class="ticker-tags">${tickersHTML}</div>` : ''}
                 </div>
+            </div>
+            </div>
+        `;
+    }
+
+    // Create HTML for image thumbnails in capture cards
+    createImageThumbnailsHTML(images) {
+        if (!images || !images.length) return '';
+        
+        return `
+            <div class="capture-image-thumbnails">
+                ${images.map((image, index) => `
+                    <img src="${image.thumbnail}" alt="${image.name}" class="capture-thumbnail" data-image-id="${image.id}">
+                `).join('')}
             </div>
         `;
     }
@@ -617,6 +656,9 @@ class CaptureManager {
                 }
             }
             
+            // Show existing images in edit mode (read-only)
+            this.showEditModeImages(capture.images || []);
+            
             // Show edit UI
             this.editIndicator.style.display = 'flex';
             this.editActions.style.display = 'flex';
@@ -688,28 +730,29 @@ class CaptureManager {
     
     // Exit edit mode
     exitEditMode() {
+        // Clear edit mode state
         this.isEditMode = false;
         this.editingCaptureId = null;
-        this.originalText = '';
+        this.originalText = null;
         this.originalCategory = null;
         this.originalTimeframe = null;
         
-        // Hide edit UI
+        // Hide edit UI and images
         this.editIndicator.style.display = 'none';
         this.editActions.style.display = 'none';
+        this.hideEditModeImages();
         
-        // Clear input and reset category/timeframe
+        // Clear form
         this.captureInput.value = '';
         this.tickerPreview.textContent = '';
         this.resetCategorySelection();
-        this.hideTimeframeDropdown();
         this.resetTimeframeSelection();
         this.updateSendButton('');
         
-        // Load draft if exists
+        // Restore draft
         this.loadDraft();
     }
-
+    
     // Utility: Get relative time string (Kortex-style)
     getRelativeTime(date) {
         const now = Date.now();
@@ -731,6 +774,339 @@ class CaptureManager {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+    
+    // ===== IMAGE UPLOAD SYSTEM =====
+    
+    setupImageUpload() {
+        // Image upload button click
+        this.imageUploadButton.addEventListener('click', () => {
+            this.imageFileInput.click();
+        });
+        
+        // File input change
+        this.imageFileInput.addEventListener('change', (e) => {
+            this.handleFileSelect(e.target.files);
+        });
+        
+        // Paste from clipboard
+        document.addEventListener('paste', (e) => {
+            if (e.clipboardData && e.clipboardData.files.length > 0) {
+                e.preventDefault();
+                this.handleFileSelect(e.clipboardData.files);
+            }
+        });
+        
+        // Drag and drop
+        this.captureInputContainer.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            this.captureInputContainer.classList.add('drag-over');
+        });
+        
+        this.captureInputContainer.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            this.captureInputContainer.classList.remove('drag-over');
+        });
+        
+        this.captureInputContainer.addEventListener('drop', (e) => {
+            e.preventDefault();
+            this.captureInputContainer.classList.remove('drag-over');
+            if (e.dataTransfer.files.length > 0) {
+                this.handleFileSelect(e.dataTransfer.files);
+            }
+        });
+    }
+    
+    async handleFileSelect(files) {
+        const imageFiles = Array.from(files).filter(file => 
+            file.type.startsWith('image/') && 
+            ['image/png', 'image/jpeg', 'image/jpg'].includes(file.type)
+        );
+        
+        if (imageFiles.length === 0) {
+            this.showSaveIndicator('Please select PNG or JPEG images only');
+            return;
+        }
+        
+        // Check if adding these images would exceed the limit
+        if (this.selectedImages.length + imageFiles.length > 4) {
+            this.showSaveIndicator('Maximum 4 images per capture');
+            return;
+        }
+        
+        for (const file of imageFiles) {
+            // Check file size (5MB limit)
+            if (file.size > 5 * 1024 * 1024) {
+                this.showSaveIndicator(`${file.name} is too large (max 5MB)`);
+                continue;
+            }
+            
+            await this.processImage(file);
+        }
+    }
+    
+    async processImage(file) {
+        const imageId = 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        
+        // Show loading state
+        this.addImageLoading(imageId);
+        
+        try {
+            // Read file as data URL
+            const dataUrl = await this.fileToDataUrl(file);
+            
+            // Compress and create thumbnail
+            const { compressedImage, thumbnail } = await this.compressImage(dataUrl, file.type);
+            
+            const imageObj = {
+                id: imageId,
+                name: file.name,
+                fullImage: compressedImage,
+                thumbnail: thumbnail,
+                size: this.getBase64Size(compressedImage),
+                type: file.type
+            };
+            
+            // Add to selected images
+            this.selectedImages.push(imageObj);
+            
+            // Remove loading state and show preview
+            this.removeImageLoading(imageId);
+            this.addImagePreview(imageObj);
+            this.updateImagePreviewVisibility();
+            
+        } catch (error) {
+            console.error('Error processing image:', error);
+            this.removeImageLoading(imageId);
+            this.showSaveIndicator('Failed to process image');
+        }
+    }
+    
+    fileToDataUrl(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = e => resolve(e.target.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+    
+    clearImages() {
+        this.selectedImages = [];
+        this.imagePreviewList.innerHTML = '';
+        this.updateImagePreviewVisibility();
+        this.imageFileInput.value = '';
+    }
+    
+    async compressImage(dataUrl, type) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                // Create canvas for compression
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Calculate dimensions (max 1200px width)
+                let { width, height } = img;
+                const maxWidth = 1200;
+                if (width > maxWidth) {
+                    height = (height * maxWidth) / width;
+                    width = maxWidth;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                // Draw and compress
+                ctx.drawImage(img, 0, 0, width, height);
+                const compressedImage = canvas.toDataURL(type, 0.8);
+                
+                // Create thumbnail (max 200px width)
+                const thumbCanvas = document.createElement('canvas');
+                const thumbCtx = thumbCanvas.getContext('2d');
+                
+                let thumbWidth = width;
+                let thumbHeight = height;
+                const maxThumbWidth = 200;
+                const maxThumbHeight = 150;
+                
+                if (thumbWidth > maxThumbWidth || thumbHeight > maxThumbHeight) {
+                    const ratio = Math.min(maxThumbWidth / thumbWidth, maxThumbHeight / thumbHeight);
+                    thumbWidth *= ratio;
+                    thumbHeight *= ratio;
+                }
+                
+                thumbCanvas.width = thumbWidth;
+                thumbCanvas.height = thumbHeight;
+                thumbCtx.drawImage(img, 0, 0, thumbWidth, thumbHeight);
+                const thumbnail = thumbCanvas.toDataURL(type, 0.7);
+                
+                resolve({ compressedImage, thumbnail });
+            };
+            img.src = dataUrl;
+        });
+    }
+    
+    getBase64Size(base64String) {
+        return Math.round((base64String.length * 3) / 4);
+    }
+    
+    addImageLoading(imageId) {
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'image-loading';
+        loadingDiv.id = `loading-${imageId}`;
+        loadingDiv.innerHTML = '<div class="image-loading-spinner"></div>';
+        
+        this.imagePreviewList.appendChild(loadingDiv);
+        this.updateImagePreviewVisibility();
+    }
+    
+    removeImageLoading(imageId) {
+        const loadingDiv = document.getElementById(`loading-${imageId}`);
+        if (loadingDiv) {
+            loadingDiv.remove();
+        }
+    }
+    
+    addImagePreview(imageObj) {
+        const previewDiv = document.createElement('div');
+        previewDiv.className = 'image-preview-item';
+        previewDiv.id = `preview-${imageObj.id}`;
+        
+        previewDiv.innerHTML = `
+            <img src="${imageObj.thumbnail}" alt="${imageObj.name}" class="image-preview-thumbnail">
+            <button class="image-remove-button" data-image-id="${imageObj.id}">×</button>
+        `;
+        
+        // Add click handlers
+        const thumbnail = previewDiv.querySelector('.image-preview-thumbnail');
+        thumbnail.addEventListener('click', () => this.showImageModal(imageObj));
+        
+        const removeBtn = previewDiv.querySelector('.image-remove-button');
+        removeBtn.addEventListener('click', () => this.removeImage(imageObj.id));
+        
+        this.imagePreviewList.appendChild(previewDiv);
+    }
+    
+    removeImage(imageId) {
+        // Remove from selected images
+        this.selectedImages = this.selectedImages.filter(img => img.id !== imageId);
+        
+        // Remove from DOM
+        const previewDiv = document.getElementById(`preview-${imageId}`);
+        if (previewDiv) {
+            previewDiv.remove();
+        }
+        
+        this.updateImagePreviewVisibility();
+    }
+    
+    updateImagePreviewVisibility() {
+        const hasImages = this.selectedImages.length > 0 || this.imagePreviewList.children.length > 0;
+        this.imagePreviewContainer.style.display = hasImages ? 'block' : 'none';
+    }
+    
+    showImageModal(imageObj) {
+        // Simple modal for now
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            cursor: pointer;
+        `;
+        
+        const img = document.createElement('img');
+        img.src = imageObj.fullImage;
+        img.style.cssText = `
+            max-width: 90vw;
+            max-height: 90vh;
+            object-fit: contain;
+        `;
+        
+        modal.appendChild(img);
+        document.body.appendChild(modal);
+        
+        // Close on click or escape
+        modal.addEventListener('click', () => {
+            document.body.removeChild(modal);
+        });
+        
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') {
+                document.body.removeChild(modal);
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+    }
+    
+    async showCaptureImageModal(captureId, imageId) {
+        try {
+            // Get the capture from storage
+            const captures = await captureStorage.getAll();
+            const capture = captures.find(c => c.id == captureId);
+            if (!capture || !capture.images) return;
+            
+            // Find the specific image
+            const image = capture.images.find(img => img.id === imageId);
+            if (!image) return;
+            
+            // Show the image in modal using the existing showImageModal method
+            this.showImageModal(image);
+            
+        } catch (error) {
+            console.error('Error showing capture image:', error);
+        }
+    }
+    
+    // Show images in edit mode (read-only)
+    showEditModeImages(images) {
+        if (!images || !images.length) return;
+        
+        // Create edit mode image container
+        const editImageContainer = document.createElement('div');
+        editImageContainer.className = 'edit-mode-images';
+        editImageContainer.id = 'edit-mode-images';
+        
+        editImageContainer.innerHTML = `
+            <div class="capture-image-thumbnails">
+                ${images.map((image) => `
+                    <img src="${image.thumbnail}" alt="${image.name}" class="capture-thumbnail" data-image-id="${image.id}">
+                `).join('')}
+            </div>
+        `;
+        
+        // Insert after textarea, before edit actions
+        const editActions = document.getElementById('edit-actions');
+        editActions.parentNode.insertBefore(editImageContainer, editActions);
+        
+        // Add click handlers for modal viewing
+        editImageContainer.querySelectorAll('.capture-thumbnail').forEach(thumbnail => {
+            thumbnail.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const imageId = thumbnail.dataset.imageId;
+                const image = images.find(img => img.id === imageId);
+                if (image) {
+                    this.showImageModal(image);
+                }
+            });
+        });
+    }
+    
+    // Hide edit mode images
+    hideEditModeImages() {
+        const editImageContainer = document.getElementById('edit-mode-images');
+        if (editImageContainer) {
+            editImageContainer.remove();
+        }
     }
 }
 

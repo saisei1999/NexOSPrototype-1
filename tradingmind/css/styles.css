@@ -528,6 +528,186 @@ body {
     transform: rotate(45deg);
 }
 
+/* ===== IMAGE UPLOAD SYSTEM ===== */
+.image-upload-button {
+    position: absolute;
+    right: 60px; /* Left of send button */
+    bottom: var(--space-3);
+    width: 40px;
+    height: 40px;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.image-upload-button:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.image-upload-button svg {
+    width: 18px;
+    height: 18px;
+}
+
+.image-preview-container {
+    padding: var(--space-3) var(--space-4);
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+}
+
+.image-preview-list {
+    display: flex;
+    gap: var(--space-2);
+    overflow-x: auto;
+    padding: var(--space-1) 0;
+}
+
+.image-preview-item {
+    position: relative;
+    flex-shrink: 0;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.image-preview-thumbnail {
+    display: block;
+    max-width: 200px;
+    max-height: 150px;
+    object-fit: cover;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.image-preview-thumbnail:hover {
+    opacity: 0.8;
+}
+
+.image-remove-button {
+    position: absolute;
+    top: var(--space-1);
+    right: var(--space-1);
+    width: 20px;
+    height: 20px;
+    background: rgba(0, 0, 0, 0.7);
+    border: none;
+    border-radius: 50%;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    font-size: 12px;
+}
+
+.image-preview-item:hover .image-remove-button {
+    opacity: 1;
+}
+
+.image-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100px;
+    height: 100px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+}
+
+.image-loading-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-color);
+    border-top: 2px solid var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Drag and Drop Styles */
+.capture-input-container.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-light);
+}
+
+.drag-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 132, 255, 0.1);
+    border: 2px dashed var(--accent);
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    font-weight: 600;
+    z-index: 10;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.drag-overlay.show {
+    opacity: 1;
+}
+
+/* ===== CAPTURE IMAGE THUMBNAILS ===== */
+.capture-image-thumbnails {
+    display: flex;
+    gap: var(--space-2);
+    margin: var(--space-3) 0;
+    flex-wrap: wrap;
+}
+
+.capture-thumbnail {
+    width: 80px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.capture-thumbnail:hover {
+    transform: scale(1.05);
+    border-color: var(--accent-color);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+/* ===== EDIT MODE IMAGES ===== */
+.edit-mode-images {
+    margin: var(--space-3) 0;
+    padding: var(--space-3);
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+}
+
+.edit-mode-images .capture-image-thumbnails {
+    margin: 0;
+}
+
 .edit-actions {
     display: flex;
     justify-content: flex-end;
