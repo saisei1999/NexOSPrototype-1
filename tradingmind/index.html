@@ -104,9 +104,20 @@
                             <button class="category-btn" data-category="fundamental" id="category-fundamental">
                                 Fundamental
                             </button>
-                            <button class="category-btn" data-category="idea" id="category-idea">
-                                Idea
-                            </button>
+                            <div class="category-dropdown-container">
+                                <button class="category-btn" data-category="idea" id="category-idea">
+                                    <span class="category-text">Idea</span>
+                                    <span class="dropdown-arrow" id="idea-dropdown-arrow" style="display: none;">▼</span>
+                                </button>
+                                
+                                <!-- Timeframe Dropdown Menu -->
+                                <div class="dropdown-menu" id="timeframe-dropdown">
+                                    <div class="dropdown-option" data-timeframe="intraday">Intraday</div>
+                                    <div class="dropdown-option" data-timeframe="swing">Swing</div>
+                                    <div class="dropdown-option" data-timeframe="core">Core</div>
+                                    <div class="dropdown-option" data-timeframe="long-term">Long-term</div>
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="textarea-container">

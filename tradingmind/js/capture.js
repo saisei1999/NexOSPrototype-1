@@ -18,11 +18,19 @@ class CaptureManager {
         this.categoryButtons = document.querySelectorAll('.category-btn');
         this.selectedCategory = null;
         
+        // Dropdown elements
+        this.dropdownArrow = document.getElementById('idea-dropdown-arrow');
+        this.timeframeDropdown = document.getElementById('timeframe-dropdown');
+        this.dropdownOptions = document.querySelectorAll('.dropdown-option');
+        this.selectedTimeframe = null;
+        this.isDropdownOpen = false;
+        
         this.saveTimeout = null;
         this.isEditMode = false;
         this.editingCaptureId = null;
         this.originalText = '';
         this.originalCategory = null;
+        this.originalTimeframe = null;
         
         this.init();
         this.initStockModal();
@@ -46,6 +54,36 @@ class CaptureManager {
         // Category selection event listeners
         this.categoryButtons.forEach(btn => {
             btn.addEventListener('click', (e) => this.selectCategory(e.target.dataset.category));
+        });
+        
+        // Dropdown event listeners
+        if (this.dropdownArrow) {
+            this.dropdownArrow.addEventListener('click', (e) => {
+                e.stopPropagation();
+                console.log('Dropdown arrow clicked'); // Debug log
+                this.toggleDropdown();
+            });
+        }
+        
+        this.dropdownOptions.forEach(option => {
+            option.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.selectTimeframe(e.target.dataset.timeframe);
+            });
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.category-dropdown-container')) {
+                this.closeDropdown();
+            }
+        });
+        
+        // Close dropdown on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.isDropdownOpen) {
+                this.closeDropdown();
+            }
         });
         
         // Load draft from localStorage
@@ -125,6 +163,16 @@ class CaptureManager {
             this.selectedCategory = category;
         }
         
+        // Handle Idea category dropdown
+        if (category === 'idea') {
+            this.showDropdownArrow();
+            this.updateIdeaButtonText();
+        } else {
+            this.hideDropdownArrow();
+            this.closeDropdown();
+            this.resetTimeframeSelection();
+        }
+        
         // Update send button state
         this.updateSendButton(this.captureInput.value);
     }
@@ -133,6 +181,88 @@ class CaptureManager {
     resetCategorySelection() {
         this.categoryButtons.forEach(btn => btn.classList.remove('selected'));
         this.selectedCategory = null;
+        this.hideDropdownArrow();
+        this.closeDropdown();
+        this.resetTimeframeSelection();
+    }
+    
+    // Show dropdown arrow
+    showDropdownArrow() {
+        this.dropdownArrow.style.display = 'inline';
+    }
+    
+    // Hide dropdown arrow
+    hideDropdownArrow() {
+        this.dropdownArrow.style.display = 'none';
+    }
+    
+    // Toggle dropdown menu
+    toggleDropdown() {
+        console.log('Toggle dropdown called, isOpen:', this.isDropdownOpen); // Debug log
+        if (this.isDropdownOpen) {
+            this.closeDropdown();
+        } else {
+            this.openDropdown();
+        }
+    }
+    
+    // Open dropdown menu
+    openDropdown() {
+        console.log('Opening dropdown, element:', this.timeframeDropdown); // Debug log
+        if (this.timeframeDropdown) {
+            this.timeframeDropdown.classList.add('show');
+            this.isDropdownOpen = true;
+            this.updateDropdownSelection();
+        }
+    }
+    
+    // Close dropdown menu
+    closeDropdown() {
+        this.timeframeDropdown.classList.remove('show');
+        this.isDropdownOpen = false;
+    }
+    
+    // Update dropdown selection highlighting
+    updateDropdownSelection() {
+        this.dropdownOptions.forEach(option => {
+            option.classList.remove('selected');
+            if (option.dataset.timeframe === this.selectedTimeframe) {
+                option.classList.add('selected');
+            }
+        });
+    }
+    
+    // Select timeframe from dropdown
+    selectTimeframe(timeframe) {
+        // If already selected, deselect it
+        if (this.selectedTimeframe === timeframe) {
+            this.selectedTimeframe = null;
+        } else {
+            this.selectedTimeframe = timeframe;
+        }
+        
+        this.updateIdeaButtonText();
+        this.updateDropdownSelection();
+        this.closeDropdown();
+    }
+    
+    // Update Idea button text based on selection
+    updateIdeaButtonText() {
+        const ideaBtn = document.querySelector('[data-category="idea"] .category-text');
+        if (ideaBtn) {
+            if (this.selectedTimeframe) {
+                ideaBtn.textContent = `Idea - ${this.selectedTimeframe.charAt(0).toUpperCase() + this.selectedTimeframe.slice(1)}`;
+            } else {
+                ideaBtn.textContent = 'Idea';
+            }
+        }
+    }
+    
+    // Reset timeframe selection
+    resetTimeframeSelection() {
+        this.selectedTimeframe = null;
+        this.updateIdeaButtonText();
+        this.updateDropdownSelection();
     }
     
     // Update send button state
@@ -158,6 +288,7 @@ class CaptureManager {
                 text: text,
                 tickers: tickers,
                 category: this.selectedCategory,
+                timeframe: this.selectedTimeframe, // null for non-idea categories
                 timestamp: new Date().toISOString(),
                 processed: false
             };
@@ -168,6 +299,8 @@ class CaptureManager {
             this.captureInput.value = '';
             this.tickerPreview.textContent = '';
             this.resetCategorySelection();
+            this.hideTimeframeDropdown();
+            this.resetTimeframeSelection();
             this.updateSendButton('');
             this.clearDraft();
             
@@ -244,7 +377,16 @@ class CaptureManager {
     createCaptureHTML(capture) {
         const timeAgo = this.getRelativeTime(new Date(capture.timestamp));
         const tickersHTML = capture.tickers.map(t => `<span class="ticker-tag">$${t}</span>`).join('');
-        const categoryBadge = capture.category ? `<div class="category-badge ${capture.category}">${capture.category}</div>` : '';
+        
+        // Create enhanced category badge with timeframe
+        let categoryBadge = '';
+        if (capture.category) {
+            let badgeText = capture.category.toUpperCase();
+            if (capture.timeframe && capture.category === 'idea') {
+                badgeText += ` - ${capture.timeframe.toUpperCase()}`;
+            }
+            categoryBadge = `<div class="category-badge ${capture.category}">${badgeText}</div>`;
+        }
         
         return `
             <div class="capture-card" data-capture-id="${capture.id}">
@@ -400,6 +542,7 @@ class CaptureManager {
         storage.saveToLocal('capture_draft', { 
             text, 
             category: this.selectedCategory,
+            timeframe: this.selectedTimeframe,
             timestamp: Date.now() 
         });
     }
@@ -415,6 +558,11 @@ class CaptureManager {
             // Restore category selection
             if (draft.category) {
                 this.selectCategory(draft.category);
+                
+                // Restore timeframe selection if it exists
+                if (draft.timeframe && draft.category === 'idea') {
+                    this.selectTimeframe(draft.timeframe);
+                }
             }
         }
     }
@@ -435,6 +583,7 @@ class CaptureManager {
             this.editingCaptureId = captureId;
             this.originalText = capture.text;
             this.originalCategory = capture.category;
+            this.originalTimeframe = capture.timeframe;
             
             // Load text into input
             this.captureInput.value = capture.text;
@@ -443,6 +592,11 @@ class CaptureManager {
             // Set category selection
             if (capture.category) {
                 this.selectCategory(capture.category);
+                
+                // Set timeframe selection if it exists
+                if (capture.timeframe && capture.category === 'idea') {
+                    this.selectTimeframe(capture.timeframe);
+                }
             }
             
             // Show edit UI
@@ -474,6 +628,7 @@ class CaptureManager {
                 capture.text = newText;
                 capture.tickers = this.extractTickers(newText);
                 capture.category = this.selectedCategory;
+                capture.timeframe = this.selectedTimeframe;
                 capture.updatedAt = new Date().toISOString();
                 
                 await captureStorage.save(capture);
@@ -498,8 +653,16 @@ class CaptureManager {
         // Restore original category
         if (this.originalCategory) {
             this.selectCategory(this.originalCategory);
+            
+            // Restore original timeframe if it exists
+            if (this.originalTimeframe && this.originalCategory === 'idea') {
+                this.selectTimeframe(this.originalTimeframe);
+            } else {
+                this.resetTimeframeSelection();
+            }
         } else {
             this.resetCategorySelection();
+            this.resetTimeframeSelection();
         }
         
         this.exitEditMode();
@@ -511,15 +674,18 @@ class CaptureManager {
         this.editingCaptureId = null;
         this.originalText = '';
         this.originalCategory = null;
+        this.originalTimeframe = null;
         
         // Hide edit UI
         this.editIndicator.style.display = 'none';
         this.editActions.style.display = 'none';
         
-        // Clear input and reset category
+        // Clear input and reset category/timeframe
         this.captureInput.value = '';
         this.tickerPreview.textContent = '';
         this.resetCategorySelection();
+        this.hideTimeframeDropdown();
+        this.resetTimeframeSelection();
         this.updateSendButton('');
         
         // Load draft if exists
