@@ -1,8 +1,8 @@
-// Storage.js - Data persistence layer for TradingMind
+// Storage.js - Data persistence layer for NexOS
 
 class Storage {
     constructor() {
-        this.dbName = 'TradingMindDB';
+        this.dbName = 'NexOSDB';
         this.dbVersion = 1;
         this.db = null;
         this.initDB();

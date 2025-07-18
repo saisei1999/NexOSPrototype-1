@@ -1,4 +1,4 @@
-// App.js - Main application logic for TradingMind
+// App.js - Main application logic for NexOS
 
 class App {
     constructor() {

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TradingMind - Stock Market Research</title>
+    <title>NexOS - Stock Market Research</title>
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -11,7 +11,7 @@
         <!-- Sidebar Navigation -->
         <aside class="sidebar">
             <div class="sidebar-header">
-                <h1 class="app-title">TradingMind</h1>
+                <h1 class="app-title">NexOS</h1>
                 <div class="search-container">
                     <input type="text" class="search-input" placeholder="Search..." id="search-input">
                     <span class="search-shortcut">⌘K</span>
@@ -29,7 +29,7 @@
                     
                     <button class="sidebar-item" data-tab="notes">
                         <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                             <polyline points="14,2 14,8 20,8"></polyline>
                         </svg>
                         <span>Notes</span>
@@ -85,15 +85,38 @@
                 </div>
                 
                 <div class="capture-section">
-                    <textarea 
-                        id="capture-input" 
-                        class="capture-input" 
-                        placeholder="Quick capture your trading ideas... Use $TICKER to tag stocks (e.g., $AAPL, $TSLA)"
-                        autofocus
-                    ></textarea>
+                    <div class="capture-input-container">
+                        <div class="input-header">
+                            <div class="edit-indicator" id="edit-indicator" style="display: none;">
+                                <svg class="edit-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                                <span>editing</span>
+                            </div>
+                        </div>
+                        <div class="textarea-container">
+                            <textarea 
+                                id="capture-input" 
+                                class="capture-input" 
+                                placeholder="Quick capture your trading ideas... Use $TICKER to tag stocks (e.g., $AAPL, $TSLA)"
+                                autofocus
+                            ></textarea>
+                            <button class="send-button" id="send-button" title="Send (Cmd+Enter)">
+                                <svg class="send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M22 2L11 13"></path>
+                                    <path d="M22 2L15 22L11 13L2 9L22 2Z"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="edit-actions" id="edit-actions" style="display: none;">
+                            <button class="btn-secondary cancel-edit-btn" id="cancel-edit-btn">Cancel</button>
+                            <button class="btn-primary save-edit-btn" id="save-edit-btn">Save</button>
+                        </div>
+                    </div>
                     <div class="capture-info">
                         <span id="ticker-preview" class="ticker-preview"></span>
-                        <span class="save-indicator" id="save-indicator">Saved</span>
+                        <span class="save-indicator" id="save-indicator">Draft saved</span>
                     </div>
                 </div>
                 
@@ -136,6 +159,46 @@
                 </div>
             </div>
         </main>
+    </div>
+
+    <!-- Stock Modal -->
+    <div class="modal-overlay" id="stock-modal-overlay" style="display: none;">
+        <div class="stock-modal" id="stock-modal">
+            <div class="modal-header">
+                <h3 class="stock-symbol" id="modal-stock-symbol">$AAPL</h3>
+                <button class="modal-close" id="modal-close">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-content">
+                <div class="stock-price">
+                    <span class="current-price" id="modal-price">$185.25</span>
+                    <span class="price-change" id="modal-change">+2.15 (+1.17%)</span>
+                </div>
+                <div class="stock-chart">
+                    <div class="chart-placeholder">
+                        <svg viewBox="0 0 300 150" class="mock-chart">
+                            <polyline points="10,140 50,120 90,100 130,80 170,90 210,70 250,60 290,50" 
+                                      fill="none" stroke="#0084ff" stroke-width="2"/>
+                            <circle cx="290" cy="50" r="3" fill="#0084ff"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="stock-metrics">
+                    <div class="metric">
+                        <span class="metric-label">Volume</span>
+                        <span class="metric-value" id="modal-volume">45.2M</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Market Cap</span>
+                        <span class="metric-value" id="modal-market-cap">2.85T</span>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Load JavaScript -->

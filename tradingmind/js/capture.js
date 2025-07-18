@@ -1,16 +1,26 @@
-// Capture.js - Quick capture functionality for TradingMind
+// Capture.js - Quick capture functionality for NexOS
 
 class CaptureManager {
     constructor() {
         this.captureInput = document.getElementById('capture-input');
+        this.sendButton = document.getElementById('send-button');
         this.tickerPreview = document.getElementById('ticker-preview');
         this.saveIndicator = document.getElementById('save-indicator');
         this.capturesContainer = document.getElementById('captures-container');
         
+        // Edit mode elements
+        this.editIndicator = document.getElementById('edit-indicator');
+        this.editActions = document.getElementById('edit-actions');
+        this.saveEditBtn = document.getElementById('save-edit-btn');
+        this.cancelEditBtn = document.getElementById('cancel-edit-btn');
+        
         this.saveTimeout = null;
-        this.currentCapture = null;
+        this.isEditMode = false;
+        this.editingCaptureId = null;
+        this.originalText = '';
         
         this.init();
+        this.initStockModal();
     }
 
     init() {
@@ -20,6 +30,13 @@ class CaptureManager {
         // Set up event listeners
         this.captureInput.addEventListener('input', (e) => this.handleInput(e));
         this.captureInput.addEventListener('keydown', (e) => this.handleKeydown(e));
+        
+        // Send button event listener
+        this.sendButton.addEventListener('click', () => this.commitCapture());
+        
+        // Edit mode event listeners
+        this.saveEditBtn.addEventListener('click', () => this.saveEdit());
+        this.cancelEditBtn.addEventListener('click', () => this.cancelEdit());
         
         // Load draft from localStorage
         this.loadDraft();
@@ -33,7 +50,7 @@ class CaptureManager {
         return [...new Set(matches.map(t => t.slice(1)))];
     }
 
-    // Handle input changes with debounced auto-save
+    // Handle input changes - only save drafts, no auto-commit
     handleInput(event) {
         const text = event.target.value;
         const tickers = this.extractTickers(text);
@@ -41,26 +58,39 @@ class CaptureManager {
         // Update ticker preview
         this.updateTickerPreview(tickers);
         
+        // Update send button state
+        this.updateSendButton(text);
+        
         // Clear existing timeout
         clearTimeout(this.saveTimeout);
         
-        // Save draft immediately to localStorage
-        this.saveDraft(text);
-        
-        // Debounce auto-save to IndexedDB
-        if (text.trim()) {
-            this.saveTimeout = setTimeout(() => {
-                this.autoSave(text, tickers);
-            }, 500);
-        }
+        // Save draft to localStorage with debouncing
+        this.saveTimeout = setTimeout(() => {
+            this.saveDraft(text);
+            if (text.trim()) {
+                this.showSaveIndicator('Draft saved');
+            }
+        }, 300);
     }
 
     // Handle keyboard shortcuts
     handleKeydown(event) {
-        // Cmd/Ctrl + Enter to save and clear
-        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-            event.preventDefault();
-            this.saveAndClear();
+        if (this.isEditMode) {
+            // Edit mode shortcuts
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                this.saveEdit();
+            }
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                this.cancelEdit();
+            }
+        } else {
+            // Normal mode shortcuts
+            if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+                event.preventDefault();
+                this.commitCapture();
+            }
         }
     }
 
@@ -72,34 +102,16 @@ class CaptureManager {
             this.tickerPreview.textContent = '';
         }
     }
-
-    // Auto-save capture
-    async autoSave(text, tickers) {
-        try {
-            // If we have a current capture, update it; otherwise create new
-            const capture = {
-                id: this.currentCapture?.id || Date.now(),
-                text: text,
-                tickers: tickers,
-                timestamp: this.currentCapture?.timestamp || new Date().toISOString(),
-                processed: false
-            };
-            
-            await captureStorage.save(capture);
-            this.currentCapture = capture;
-            
-            // Show save indicator
-            this.showSaveIndicator();
-            
-            // Reload captures list
-            this.loadCaptures();
-        } catch (error) {
-            console.error('Failed to auto-save capture:', error);
-        }
+    
+    // Update send button state
+    updateSendButton(text) {
+        const hasText = text.trim().length > 0;
+        this.sendButton.disabled = !hasText;
+        this.sendButton.style.opacity = hasText ? '0.7' : '0.3';
     }
-
-    // Save and clear (Cmd+Enter)
-    async saveAndClear() {
+    
+    // Commit capture (messaging style)
+    async commitCapture() {
         const text = this.captureInput.value.trim();
         if (!text) return;
         
@@ -119,11 +131,11 @@ class CaptureManager {
             // Clear input and reset
             this.captureInput.value = '';
             this.tickerPreview.textContent = '';
-            this.currentCapture = null;
+            this.updateSendButton('');
             this.clearDraft();
             
-            // Show save indicator
-            this.showSaveIndicator();
+            // Show success indicator
+            this.showSaveIndicator('Sent');
             
             // Reload captures list
             this.loadCaptures();
@@ -131,12 +143,15 @@ class CaptureManager {
             // Focus back on input
             this.captureInput.focus();
         } catch (error) {
-            console.error('Failed to save capture:', error);
+            console.error('Failed to commit capture:', error);
         }
     }
 
+
+
     // Show save indicator briefly
-    showSaveIndicator() {
+    showSaveIndicator(message = 'Saved') {
+        this.saveIndicator.textContent = message;
         this.saveIndicator.classList.add('show');
         setTimeout(() => {
             this.saveIndicator.classList.remove('show');
@@ -171,10 +186,19 @@ class CaptureManager {
             });
         });
         
-        this.capturesContainer.querySelectorAll('.thread-btn').forEach(btn => {
+        this.capturesContainer.querySelectorAll('.delete-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                this.processCapture(e.target.closest('button').dataset.id);
+                this.deleteCapture(e.target.closest('button').dataset.id);
+            });
+        });
+        
+        // Add event listeners to ticker tags
+        this.capturesContainer.querySelectorAll('.ticker-tag').forEach(tag => {
+            tag.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const ticker = tag.textContent.replace('$', '');
+                this.showStockModal(ticker);
             });
         });
     }
@@ -193,9 +217,12 @@ class CaptureManager {
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                         </svg>
                     </button>
-                    <button class="action-btn thread-btn" data-id="${capture.id}" title="Add to thread">
+                    <button class="action-btn delete-btn" data-id="${capture.id}" title="Delete">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                            <polyline points="3,6 5,6 21,6"></polyline>
+                            <path d="M19,6V20a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6M8,6V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2V6"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
                         </svg>
                     </button>
                 </div>
@@ -243,16 +270,90 @@ class CaptureManager {
         }
     }
 
-    // Delete capture
+    // Delete capture with confirmation
     async deleteCapture(captureId) {
-        if (!confirm('Delete this capture?')) return;
+        if (!confirm('Are you sure you want to delete this capture?')) return;
         
         try {
             await captureStorage.delete(parseInt(captureId));
             this.loadCaptures();
+            this.showSaveIndicator('Deleted');
         } catch (error) {
             console.error('Failed to delete capture:', error);
         }
+    }
+    
+    // Initialize stock modal
+    initStockModal() {
+        const modalOverlay = document.getElementById('stock-modal-overlay');
+        const modalClose = document.getElementById('modal-close');
+        
+        // Close modal on overlay click
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) {
+                this.hideStockModal();
+            }
+        });
+        
+        // Close modal on close button click
+        modalClose.addEventListener('click', () => {
+            this.hideStockModal();
+        });
+        
+        // Close modal on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modalOverlay.style.display !== 'none') {
+                this.hideStockModal();
+            }
+        });
+    }
+    
+    // Show stock modal with mock data
+    showStockModal(ticker) {
+        const mockData = this.getMockStockData(ticker);
+        
+        // Update modal content
+        document.getElementById('modal-stock-symbol').textContent = `$${ticker}`;
+        document.getElementById('modal-price').textContent = `$${mockData.price}`;
+        
+        const changeElement = document.getElementById('modal-change');
+        const changeText = `${mockData.change >= 0 ? '+' : ''}${mockData.change} (${mockData.changePercent >= 0 ? '+' : ''}${mockData.changePercent}%)`;
+        changeElement.textContent = changeText;
+        changeElement.className = `price-change ${mockData.change >= 0 ? '' : 'negative'}`;
+        
+        document.getElementById('modal-volume').textContent = mockData.volume;
+        document.getElementById('modal-market-cap').textContent = mockData.marketCap;
+        
+        // Show modal
+        document.getElementById('stock-modal-overlay').style.display = 'flex';
+    }
+    
+    // Hide stock modal
+    hideStockModal() {
+        document.getElementById('stock-modal-overlay').style.display = 'none';
+    }
+    
+    // Get mock stock data
+    getMockStockData(ticker) {
+        const mockData = {
+            AAPL: { price: 185.25, change: 2.15, changePercent: 1.17, volume: '45.2M', marketCap: '2.85T' },
+            NVDA: { price: 495.80, change: -8.45, changePercent: -1.68, volume: '28.7M', marketCap: '1.22T' },
+            TSLA: { price: 248.50, change: 12.30, changePercent: 5.21, volume: '52.1M', marketCap: '789B' },
+            MSFT: { price: 378.85, change: -2.45, changePercent: -0.64, volume: '23.4M', marketCap: '2.81T' },
+            GOOGL: { price: 142.65, change: 1.85, changePercent: 1.31, volume: '18.9M', marketCap: '1.78T' },
+            AMZN: { price: 151.94, change: -0.78, changePercent: -0.51, volume: '31.2M', marketCap: '1.58T' },
+            META: { price: 325.12, change: 4.67, changePercent: 1.46, volume: '19.8M', marketCap: '825B' },
+            SPY: { price: 445.23, change: 1.12, changePercent: 0.25, volume: '67.8M', marketCap: 'ETF' },
+            QQQ: { price: 385.67, change: -2.34, changePercent: -0.60, volume: '41.5M', marketCap: 'ETF' }
+        };
+        
+        return mockData[ticker] || {
+            price: (Math.random() * 200 + 50).toFixed(2),
+            change: (Math.random() * 10 - 5).toFixed(2),
+            changePercent: (Math.random() * 5 - 2.5).toFixed(2),
+            volume: (Math.random() * 50 + 10).toFixed(1) + 'M',
+            marketCap: (Math.random() * 2000 + 100).toFixed(0) + 'B'
+        };
     }
 
     // Save draft to localStorage
@@ -275,84 +376,90 @@ class CaptureManager {
         storage.removeFromLocal('capture_draft');
     }
 
-    // Enable edit mode for a capture
-    enableEditMode(captureId) {
-        const card = document.querySelector(`[data-capture-id="${captureId}"]`);
-        if (!card) return;
-        
-        const textElement = card.querySelector('.capture-text');
-        const currentText = textElement.textContent;
-        
-        // Create textarea
-        const textarea = document.createElement('textarea');
-        textarea.value = currentText;
-        textarea.className = 'capture-edit-textarea';
-        textarea.style.height = Math.max(textElement.offsetHeight, 40) + 'px';
-        
-        // Replace text with textarea
-        textElement.replaceWith(textarea);
-        textarea.focus();
-        textarea.select();
-        
-        // Auto-resize as user types
-        textarea.addEventListener('input', () => this.autoResize(textarea));
-        
-        // Save on blur or Ctrl+Enter
-        textarea.addEventListener('blur', () => this.saveEdit(captureId, textarea.value, currentText));
-        textarea.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && e.ctrlKey) {
-                e.preventDefault();
-                this.saveEdit(captureId, textarea.value, currentText);
-            }
-            if (e.key === 'Escape') {
-                e.preventDefault();
-                this.cancelEdit(captureId, currentText, textarea);
-            }
-        });
-    }
-    
-    // Auto-resize textarea
-    autoResize(textarea) {
-        textarea.style.height = 'auto';
-        textarea.style.height = Math.max(textarea.scrollHeight, 40) + 'px';
+    // Enable edit mode - load capture into main input area
+    async enableEditMode(captureId) {
+        try {
+            const capture = await storage.get('captures', parseInt(captureId));
+            if (!capture) return;
+            
+            // Set edit mode state
+            this.isEditMode = true;
+            this.editingCaptureId = captureId;
+            this.originalText = capture.text;
+            
+            // Load text into input
+            this.captureInput.value = capture.text;
+            this.updateTickerPreview(capture.tickers);
+            
+            // Show edit UI
+            this.editIndicator.style.display = 'flex';
+            this.editActions.style.display = 'flex';
+            
+            // Focus and select text
+            this.captureInput.focus();
+            this.captureInput.select();
+            
+        } catch (error) {
+            console.error('Failed to enable edit mode:', error);
+        }
     }
     
     // Save edited capture
-    async saveEdit(captureId, newText, originalText) {
-        if (newText.trim() === originalText.trim()) {
-            this.cancelEdit(captureId, originalText);
+    async saveEdit() {
+        if (!this.isEditMode) return;
+        
+        const newText = this.captureInput.value.trim();
+        if (newText === this.originalText.trim()) {
+            this.cancelEdit();
             return;
         }
         
         try {
-            const capture = await storage.get('captures', parseInt(captureId));
+            const capture = await storage.get('captures', parseInt(this.editingCaptureId));
             if (capture) {
-                capture.text = newText.trim();
+                capture.text = newText;
                 capture.tickers = this.extractTickers(newText);
                 capture.updatedAt = new Date().toISOString();
                 
                 await captureStorage.save(capture);
+                this.exitEditMode();
                 this.loadCaptures();
-                this.showSaveIndicator();
+                this.showSaveIndicator('Updated');
             }
         } catch (error) {
             console.error('Failed to save edit:', error);
-            this.cancelEdit(captureId, originalText);
+            this.cancelEdit();
         }
     }
     
     // Cancel edit mode
-    cancelEdit(captureId, originalText, textarea = null) {
-        const card = document.querySelector(`[data-capture-id="${captureId}"]`);
-        if (!card) return;
+    cancelEdit() {
+        if (!this.isEditMode) return;
         
-        const textareaElement = textarea || card.querySelector('.capture-edit-textarea');
-        if (textareaElement) {
-            const p = document.createElement('p');
-            p.className = 'capture-text';
-            p.textContent = originalText;
-            textareaElement.replaceWith(p);
-        }
+        // Restore original text
+        this.captureInput.value = this.originalText;
+        this.updateTickerPreview(this.extractTickers(this.originalText));
+        
+        this.exitEditMode();
+    }
+    
+    // Exit edit mode
+    exitEditMode() {
+        this.isEditMode = false;
+        this.editingCaptureId = null;
+        this.originalText = '';
+        
+        // Hide edit UI
+        this.editIndicator.style.display = 'none';
+        this.editActions.style.display = 'none';
+        
+        // Clear input
+        this.captureInput.value = '';
+        this.tickerPreview.textContent = '';
+        this.updateSendButton('');
+        
+        // Load draft if exists
+        this.loadDraft();
     }
 
     // Utility: Get relative time string (Kortex-style)

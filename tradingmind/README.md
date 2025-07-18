@@ -1,4 +1,4 @@
-# TradingMind - Stock Market Research App
+# NexOS - Stock Market Research App
 
 A powerful stock market research app that combines note-taking with article intelligence, featuring quick capture, smart notes, and real-time stock integration.
 
@@ -24,7 +24,7 @@ A powerful stock market research app that combines note-taking with article inte
 
 ### Option 1: Python Server (Recommended)
 ```bash
-# Navigate to the tradingmind directory
+# Navigate to the nexos directory
 cd tradingmind
 
 # Run the server
@@ -65,7 +65,7 @@ Simply open `index.html` in your web browser. Note: Some features like article s
 
 ### Project Structure
 ```
-tradingmind/
+nexos/
 ├── index.html          # Main app interface
 ├── css/
 │   └── styles.css      # Dark theme, mobile-first styles
