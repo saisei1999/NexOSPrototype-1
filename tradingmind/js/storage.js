@@ -144,8 +144,15 @@ const storage = new Storage();
 // Capture-specific storage methods
 const captureStorage = {
     async save(capture) {
-        capture.id = capture.id || Date.now();
-        capture.timestamp = capture.timestamp || new Date().toISOString();
+        // Only assign new ID if it doesn't exist (for new captures)
+        if (!capture.id) {
+            capture.id = Date.now();
+        }
+        // Only set timestamp if it doesn't exist (for new captures)
+        if (!capture.timestamp) {
+            capture.timestamp = new Date().toISOString();
+        }
+        // Ensure processed flag exists
         capture.processed = capture.processed || false;
         return await storage.save('captures', capture);
     },

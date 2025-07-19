@@ -677,7 +677,9 @@ class CaptureManager {
         if (!this.isEditMode) return;
         
         const newText = this.captureInput.value.trim();
-        if (newText === this.originalText.trim()) {
+        if (newText === this.originalText.trim() && 
+            this.selectedCategory === this.originalCategory && 
+            this.selectedTimeframe === this.originalTimeframe) {
             this.cancelEdit();
             return;
         }
@@ -685,12 +687,20 @@ class CaptureManager {
         try {
             const capture = await storage.get('captures', parseInt(this.editingCaptureId));
             if (capture) {
+                // Update the capture while preserving all original data
                 capture.text = newText;
                 capture.tickers = this.extractTickers(newText);
                 capture.category = this.selectedCategory;
                 capture.timeframe = this.selectedTimeframe;
                 capture.updatedAt = new Date().toISOString();
                 
+                // Explicitly preserve images and other metadata
+                // (images should already be in the capture object, but ensure they're not lost)
+                if (!capture.images) {
+                    capture.images = [];
+                }
+                
+                // Save the updated capture (this will update, not create new)
                 await captureStorage.save(capture);
                 this.exitEditMode();
                 this.loadCaptures();

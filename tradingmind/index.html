@@ -11,7 +11,12 @@
         <!-- Sidebar Navigation -->
         <aside class="sidebar">
             <div class="sidebar-header">
-                <h1 class="app-title">NexOS</h1>
+                <h1 class="app-title">
+                    <svg class="app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 24px; height: 24px; margin-right: 8px; vertical-align: middle;">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+                    </svg>
+                    NexOS
+                </h1>
                 <div class="search-container">
                     <input type="text" class="search-input" placeholder="Search..." id="search-input">
                     <span class="search-shortcut">⌘K</span>
@@ -78,10 +83,12 @@
             <!-- Inbox View -->
             <div id="inbox-view" class="view active">
                 <div class="view-header">
-                    <h2>Quick Capture</h2>
-                    <div class="view-actions">
-                        <button class="btn-secondary" id="clear-all-btn">Clear All</button>
-                    </div>
+                    <h2>
+                        <svg class="signals-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;">
+                            <polyline points="22,12 18,12 15,21 9,3 6,12 2,12"></polyline>
+                        </svg>
+                        Signals
+                    </h2>
                 </div>
                 
                 <div class="capture-section">
@@ -124,8 +131,8 @@
                             <textarea 
                                 id="capture-input" 
                                 class="capture-input" 
-                                placeholder="Quick capture your trading ideas... Use $TICKER to tag stocks (e.g., $AAPL, $TSLA)"
-                                autofocus
+                                placeholder="Signal an idea, or write an analysis. $ to tag stocks." 
+                                rows="3"
                             ></textarea>
                             
                             <!-- Image Upload Button -->
