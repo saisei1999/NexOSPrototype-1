@@ -744,28 +744,99 @@ body {
 .captures-container {
     display: flex;
     flex-direction: column;
-    gap: var(--space-4);
+    gap: 0;
+    padding: var(--space-2) 0;
+    background-color: var(--bg-primary);
+    border-radius: var(--radius-lg);
+    max-height: 60vh;
+    overflow-y: auto;
 }
 
-.capture-card {
+/* Chat Message Styles */
+.chat-message {
+    display: flex;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-2);
+    position: relative;
+    transition: background-color 0.2s ease;
+}
+
+.chat-message:hover {
+    background-color: var(--bg-tertiary);
+}
+
+.message-avatar {
+    flex-shrink: 0;
+    margin-top: var(--space-1);
+}
+
+.avatar-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: var(--accent);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: var(--text-sm);
+}
+
+.message-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.message-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-1);
+}
+
+.message-author {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: var(--text-sm);
+}
+
+.message-timestamp {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+}
+
+.message-actions {
+    opacity: 0;
+    display: flex;
+    gap: var(--space-1);
+    margin-left: auto;
+    transition: opacity 0.2s ease;
+}
+
+.chat-message:hover .message-actions {
+    opacity: 1;
+}
+
+.message-bubble {
     background-color: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
-    padding: var(--space-5);
+    padding: var(--space-4);
     position: relative;
-    cursor: pointer;
-    transition: all 0.2s ease;
+    max-width: 100%;
+    word-wrap: break-word;
 }
 
-.capture-card:hover {
-    background-color: var(--bg-hover);
-    border-color: var(--border-hover);
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-md);
+.message-text {
+    color: var(--text-primary);
+    line-height: 1.5;
+    margin-bottom: var(--space-2);
 }
 
-.capture-content {
-    margin-bottom: var(--space-4);
+.message-text:last-child {
+    margin-bottom: 0;
 }
 
 .category-badge {
@@ -871,18 +942,41 @@ body {
 }
 
 /* Action Buttons */
-.capture-actions {
-    position: absolute;
-    top: var(--space-4);
-    right: var(--space-4);
+/* Updated for chat message actions */
+.message-actions .action-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-sm);
+    border: none;
+    background-color: var(--bg-tertiary);
+    color: var(--text-secondary);
+    cursor: pointer;
     display: flex;
-    gap: var(--space-2);
-    opacity: 0;
-    transition: opacity 0.2s ease;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    padding: 4px;
 }
 
-.capture-card:hover .capture-actions {
-    opacity: 1;
+.message-actions .action-btn:hover {
+    background-color: var(--bg-quaternary);
+    color: var(--text-primary);
+    transform: scale(1.1);
+}
+
+.message-actions .action-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+.message-actions .edit-btn:hover {
+    background-color: var(--accent);
+    color: white;
+}
+
+.message-actions .delete-btn:hover {
+    background-color: #ef4444;
+    color: white;
 }
 
 .action-btn {

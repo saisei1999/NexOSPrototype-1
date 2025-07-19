@@ -406,7 +406,7 @@ class CaptureManager {
         });
     }
 
-    // Create HTML for a single capture
+    // Create HTML for a single capture - Chat bubble style
     createCaptureHTML(capture) {
         const timeAgo = this.getRelativeTime(new Date(capture.timestamp));
         const tickersHTML = capture.tickers.map(t => `<span class="ticker-tag">$${t}</span>`).join('');
@@ -427,33 +427,38 @@ class CaptureManager {
         }
         
         return `
-            <div class="capture-card" data-capture-id="${capture.id}">
-                <div class="capture-actions">
-                    <button class="action-btn edit-btn" data-id="${capture.id}" title="Edit">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                        </svg>
-                    </button>
-                    <button class="action-btn delete-btn" data-id="${capture.id}" title="Delete">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="3,6 5,6 21,6"></polyline>
-                            <path d="M19,6V20a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6M8,6V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2V6"></path>
-                            <line x1="10" y1="11" x2="10" y2="17"></line>
-                            <line x1="14" y1="11" x2="14" y2="17"></line>
-                        </svg>
-                    </button>
+            <div class="chat-message" data-capture-id="${capture.id}">
+                <div class="message-avatar">
+                    <div class="avatar-circle">T</div>
                 </div>
-                
-                <div class="capture-content">
-                ${categoryBadge}
-                <p class="capture-text">${this.escapeHtml(capture.text)}</p>
-                ${this.createImageThumbnailsHTML(capture.images || [])}
-                <div class="capture-metadata">
-                    <span class="timestamp">${timeAgo}</span>
-                    ${tickersHTML ? `<div class="ticker-tags">${tickersHTML}</div>` : ''}
+                <div class="message-content">
+                    <div class="message-header">
+                        <span class="message-author">Trader</span>
+                        <span class="message-timestamp">${timeAgo}</span>
+                        <div class="message-actions">
+                            <button class="action-btn edit-btn" data-id="${capture.id}" title="Edit">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                            </button>
+                            <button class="action-btn delete-btn" data-id="${capture.id}" title="Delete">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3,6 5,6 21,6"></polyline>
+                                    <path d="M19,6V20a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6M8,6V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2V6"></path>
+                                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="message-bubble">
+                        ${categoryBadge}
+                        <div class="message-text">${this.escapeHtml(capture.text)}</div>
+                        ${this.createImageThumbnailsHTML(capture.images || [])}
+                        ${tickersHTML ? `<div class="ticker-tags">${tickersHTML}</div>` : ''}
+                    </div>
                 </div>
-            </div>
             </div>
         `;
     }
